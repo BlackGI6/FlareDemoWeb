@@ -33,7 +33,7 @@
   
       this.map = new mapboxgl.Map({
         container: 'map',
-        style: "mapbox://styles/vladamisici/clpy9cq4g01kx01o9bzobb0hh",
+        style: "mapbox://styles/vladamisici/clq2whre401wq01p97kg492yp",
         center: this.initialCenter, // starting position [lng, lat]
         zoom: 0 // starting zoom
       });

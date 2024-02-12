@@ -16,7 +16,17 @@
           <textarea id="eventDescription" v-model="event.description" required></textarea>
           <label for="eventDescription">Description</label>
         </div>
-  
+
+        <!-- Event Banner Upload -->
+        <div class="form-group banner-upload">
+            <label for="eventBanner" class="banner-label">Event Banner</label>
+            <input type="file" id="eventBanner" accept="image/*" @change="handleBannerChange" ref="bannerInput" style="display: none;">
+            <button type="button" class="upload-button" @click="triggerFileInput">Upload Banner</button>
+            <div v-if="bannerPreview" class="banner-preview">
+                <img :src="bannerPreview" alt="Banner preview" class="preview-image">
+            </div>
+        </div>
+
         <!-- Event Date -->
         <div class="form-group">
             <label for="eventDate">Event Date</label>
@@ -77,10 +87,31 @@
   <script setup>
   import { ref, onMounted, onUnmounted, computed } from 'vue';
   import mapPin from '../assets/mapboxPin.png';
-  import { db, collection, addDoc } from '../../firebase.js';
+  import { storage } from '../../firebase.js';
+  import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+  import { db, collection, addDoc, updateDoc, doc } from '../../firebase.js';
 
   const title = "Add your event to Flare";
   const splitTitle = computed(() => title.split(""));
+
+  const bannerFile = ref(null);
+  const bannerPreview = ref(null);
+
+  function triggerFileInput() {
+    // Trigger the hidden file input
+    document.getElementById('eventBanner').click();
+  }
+
+  function handleBannerChange(event) {
+    bannerFile.value = event.target.files[0];
+    if (bannerFile.value) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        bannerPreview.value = e.target.result;
+      };
+      reader.readAsDataURL(bannerFile.value);
+    }
+  }
 
   const gradientStyle = ref({
     background: 'linear-gradient(135deg, #a467ff, #89CFF0)',
@@ -95,13 +126,34 @@
     startTime: '',
     endTime: '',
     type: '',
-    coordinates: ['21.236483', '45.750852']
+    coordinates: ['21.236483', '45.750852'],
+    bannerUrl: ''
   });
 
   const submitForm = async () => {
     try{
+      const docRef = await addDoc(collection(db, 'events'), event.value);
+      console.log('Event added with ID: ', docRef.id);
+
+      if(bannerFile.value) {
+        const bannerRef = storageRef(storage, `event_banners/${docRef.id}`);
+        await uploadBytes(bannerRef, bannerFile.value);
+        const bannerUrl = await getDownloadURL(bannerRef);
+
+        const eventRef = doc(db, 'events', docRef.id);
+        await updateDoc(eventRef, {
+          bannerUrl: bannerUrl
+        });
+      }
+        /*if(bannerFile.value) {
+          const bannerRef = storageRef(storage, `event_banners/${bannerFile.value.name}`);
+          await uploadBytes(bannerRef, bannerFile.value);
+          const bannerUrl = await getDownloadURL(bannerRef);
+
+          event.value.banner = bannerUrl;
+        }
         const docRef = await addDoc(collection(db, 'events'), event.value);
-        console.log('Event added with ID: ', docRef.id);
+        console.log('Event added with ID: ', docRef.id);*/
     } catch(error) {
         console.error("Error adding event: ", error);
     }
@@ -141,7 +193,7 @@ onUnmounted(() => {
   
   <style lang="scss">
   .event-form-container {
-    height: 900px;
+    height: 1250px;
     width: 600px;
     margin: 40px auto;
     padding: 80px;
@@ -232,6 +284,38 @@ onUnmounted(() => {
         }
 
       }
+      }
+    }
+
+    .banner-upload {
+      .banner-label {
+        display: block;
+        margin-bottom: 10px;
+        color: #a467ff;
+      }
+
+      .upload-button {
+        background-color: #a467ff;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+
+        &:hover {
+          background-color: darken(#a467ff, 10%);
+        }
+      }
+
+      .banner-preview {
+        margin-top: 20px;
+        .preview-image {
+          width: 100%;
+          max-height: 200px;
+          object-fit: cover;
+          border-radius: 5px;
+        }
       }
     }
 
